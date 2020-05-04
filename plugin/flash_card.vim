@@ -36,6 +36,9 @@ imap     <buffer> <silent> <cr> <esc><cr>
 nnoremap <buffer> <silent> <cr> :call <SID>submit_answer()<cr>
 command-buffer Accept call <SID>accept_answer()
 command-buffer Check call <SID>check_answer()
+command-buffer NextQ call <SID>move_to_next()
+command-buffer PrevQ call <SID>move_to_prev()
+command-buffer Show call <SID>show_answer()
 
 augroup flash_card_save
   autocmd!
@@ -46,7 +49,7 @@ augroup END
 function s:set_question() abort
   if !empty(getline(1)) | call deletebufline('%', 1, '$') | endif
   call setline(1, s:idx+1 .. '. ' .. s:cards[s:idx].jp)
-  call feedkeys('o')
+  " call feedkeys('o')
 endfunction
 
 call s:set_question()
@@ -56,9 +59,7 @@ function s:submit_answer() abort
   let l:is_submitted = s:is_submitted()
 
   if !l:is_submitted
-    " show answer
-    if empty(getline(2)) | call setline(2, ['']) | endif
-    call setline(3, ['', s:cards[s:idx].en])
+    call s:show_answer()
     " update counts
     let s:cards[s:idx].submit_count += 1
     if !l:is_good | let s:cards[s:idx].wrong_count += 1 | endif
@@ -74,12 +75,7 @@ function s:submit_answer() abort
       echo 'type enter'
       call getchar()
     endif
-    let s:idx += 1
-    if s:idx >= s:cards->len()
-      let s:idx = 0
-      call s:show_message('end of cards', 3)
-    endif
-    call s:set_question()
+    call s:move_to_next()
   endif
 endfunction
 
@@ -95,6 +91,25 @@ endfunction
 
 function s:is_submitted() abort
   return getbufinfo('%')[0].linecount > 2 && getline('$') ==# s:cards[s:idx].en
+endfunction
+
+function s:show_answer() abort
+  if empty(getline(2)) | call setline(2, ['']) | endif
+  call setline(3, ['', s:cards[s:idx].en])
+endfunction
+
+function s:move_to_next() abort
+  let s:idx += 1
+  if s:idx >= s:cards->len()
+    let s:idx = 0
+    call s:show_message('end of cards', 3)
+  endif
+  call s:set_question()
+endfunction
+
+function s:move_to_prev() abort
+  let s:idx = (s:idx <= 0) ? s:cards->len()-1 : s:idx-1
+  call s:set_question()
 endfunction
 
 function s:accept_answer() abort
