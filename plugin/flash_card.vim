@@ -33,8 +33,9 @@ setlocal spell spelllang=en_us
 nnoremap <buffer> <space>c i<c-x>s
 
 imap     <buffer> <silent> <cr> <esc><cr>
-nnoremap <buffer> <silent> <cr> :call <SID>check_answer()<cr>
+nnoremap <buffer> <silent> <cr> :call <SID>submit_answer()<cr>
 command-buffer Accept call <SID>accept_answer()
+command-buffer Check call <SID>check_answer()
 
 augroup flash_card_save
   autocmd!
@@ -45,12 +46,13 @@ augroup END
 function s:set_question() abort
   if !empty(getline(1)) | call deletebufline('%', 1, '$') | endif
   call setline(1, s:idx+1 .. '. ' .. s:cards[s:idx].jp)
+  call feedkeys('o')
 endfunction
 
 call s:set_question()
 
-function s:check_answer() abort
-  let l:is_good = substitute(s:cards[s:idx].en, '\W', '', 'g') ==? substitute(getline(2), '\W', '', 'g')
+function s:submit_answer() abort
+  let l:is_good = s:check_answer()
   let l:is_submitted = s:is_submitted()
 
   if !l:is_submitted
@@ -63,11 +65,12 @@ function s:check_answer() abort
   endif
 
   if l:is_good
-    call s:show_message('good')
     redraw
     if l:is_submitted
+      " just wait a little
       sleep 500m
     else
+      " wait for user feedback
       echo 'type enter'
       call getchar()
     endif
@@ -77,8 +80,16 @@ function s:check_answer() abort
       call s:show_message('end of cards', 3)
     endif
     call s:set_question()
+  endif
+endfunction
+
+function s:check_answer() abort
+  if substitute(s:cards[s:idx].en, '\W', '', 'g') ==? substitute(getline(2), '\W', '', 'g')
+    call s:show_message('good')
+    return v:true
   else
     call s:show_message('bad', 0, v:true)
+    return v:false
   endif
 endfunction
 
@@ -89,8 +100,8 @@ endfunction
 function s:accept_answer() abort
   if s:is_submitted()
     let s:cards[s:idx].wrong_count -= 1
-    call setline(2, getline(4))
-    call s:check_answer()
+    call setline(2, s:cards[s:idx].en)
+    call s:submit_answer()
   else
     echo 'not submitted'
   endif
